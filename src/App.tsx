@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import './App.css'
 import { readWavInfo } from './audio/wavInfo'
 import { playWavBlob, stopPlayback } from './audio/player'
@@ -26,6 +26,8 @@ type AssignedSample = {
 
 function App() {
   const MAX_TOTAL_SECONDS = 20
+
+  const folderInputRef = useRef<HTMLInputElement>(null)
 
   const [pending, setPending] = useState<{ file: File; durationSec: number } | null>(null)
   const [assigned, setAssigned] = useState<Record<MidiNote, AssignedSample | undefined>>({
@@ -135,14 +137,20 @@ function App() {
     })
   }
 
-  async function onPlay(blob: Blob, label: string) {
+  async function onPlay(blob: Blob, label: string, silent = false) {
     setError(null)
     try {
-      setAudioStatus(`Lecture: ${label}`)
+      if (!silent) {
+        setAudioStatus(`Lecture: ${label}`)
+      }
       await playWavBlob(blob)
-      setAudioStatus(null)
+      if (!silent) {
+        setAudioStatus(null)
+      }
     } catch (e) {
-      setAudioStatus(null)
+      if (!silent) {
+        setAudioStatus(null)
+      }
       setError(e instanceof Error ? `Impossible de lire le WAV: ${e.message}` : 'Impossible de lire le WAV')
     }
   }
@@ -231,14 +239,14 @@ function App() {
   return (
     <div className="app">
       <header className="header">
-        <div>
+      <div>
           <div className="title">Ridiwave Web</div>
           <div className="subtitle">
             Front only • aucun upload • assignation EP-40 (C4→C5) • export limité à 20s
           </div>
         </div>
         <div className="headerActions">
-          <button className="btn" onClick={resetProject} type="button">
+          <button className="btnNew" onClick={resetProject} type="button">
             Nouveau
           </button>
         </div>
@@ -250,25 +258,40 @@ function App() {
 
       <main className="grid">
         <section className="panel">
-          <div className="panelTitle">1) Dossier de samples & navigation</div>
-          <div className="row">
-            <input
-              type="file"
-              // @ts-expect-error: webkitdirectory is supported by Chromium-based browsers
-              webkitdirectory=""
-              directory=""
-              multiple
-              accept=".wav,audio/wav,audio/x-wav"
-              onChange={(e) => void onPickFolder(e.target.files)}
-            />
+          <div className="panelHeader">
+            <div className="panelTitle">Dossier de samples & navigation</div>
           </div>
+          {!treeRoot && (
+            <div className="row folderActions">
+              <input
+                ref={folderInputRef}
+                type="file"
+                // @ts-expect-error: webkitdirectory is supported by Chromium-based browsers
+                webkitdirectory=""
+                directory=""
+                multiple
+                accept=".wav,audio/wav,audio/x-wav"
+                onChange={(e) => {
+                  void onPickFolder(e.target.files)
+                  // Permet de re-sélectionner le même dossier si besoin
+                  e.currentTarget.value = ''
+                }}
+              />
+              <button
+                className="btnOrange"
+                type="button"
+                onClick={() => folderInputRef.current?.click()}
+              >
+                Charger un dossier
+              </button>
+            </div>
+          )}
           {treeRoot && currentNode ? (
             <div className="browser">
               <div className="browserHeader">
-                <div className="browserTitle">Explorateur</div>
                 <input
                   className="browserSearch"
-                  placeholder="Filtrer les WAV du dossier courant…"
+                  placeholder="Rechercher"
                   value={browserQuery}
                   onChange={(e) => setBrowserQuery(e.target.value)}
                 />
@@ -313,77 +336,141 @@ function App() {
                   </button>
                 ))}
 
-                {folderItems.files.slice(0, 500).map((f) => (
-                  <button
-                    key={f.path}
-                    className="browserItem"
-                    type="button"
-                    onClick={() => void onClickBrowserFile(f)}
-                    title="Cliquer pour écouter + mettre en attente d’assignation"
-                  >
-                    <span className="browserIcon">🎵</span>
-                    <span className="browserItemName">{f.file.name}</span>
-                  </button>
-                ))}
+                {folderItems.files.slice(0, 500).map((f) => {
+                  const isAssigned = Object.values(assigned).some(slot => slot?.file === f.file)
+                  return (
+                    <button
+                      key={f.path}
+                      className={`browserItem ${pending?.file === f.file ? 'selected' : ''} ${isAssigned ? 'assigned' : ''}`}
+                      type="button"
+                      onClick={() => void onClickBrowserFile(f)}
+                      title={
+                        isAssigned
+                          ? `Déjà assigné - Cliquer pour écouter + mettre en attente d'assignation`
+                          : 'Cliquer pour écouter + mettre en attente d\'assignation'
+                      }
+                    >
+                      <span className="browserIcon">🎵</span>
+                      <span className="browserItemName">{f.file.name}</span>
+                      {isAssigned && <span className="browserAssignedBadge" />}
+                    </button>
+                  )
+                })}
               </div>
 
-              <div className="hint">
+              <div className="hint browserHint">
                 Dossiers: {folderItems.dirs.length} • WAV: {folderItems.files.length}
                 {folderItems.files.length > 500 ? <> • affichage limité à 500 (perf)</> : null}
               </div>
             </div>
           ) : null}
-          <div className="hint">
-            {pending ? (
-              <>
-                En attente d’assignation: <b>{pending.file.name}</b> ({pending.durationSec.toFixed(2)}s)
-              </>
-            ) : (
-              <>Clique un WAV pour l’écouter et le mettre en attente, puis clique une note pour l’assigner.</>
-            )}
-          </div>
-          <div className="row" style={{ marginTop: 8 }}>
-            <button
-              className="btn"
-              type="button"
-              disabled={!pending}
-              onClick={() => (pending ? void onPlay(pending.file, pending.file.name) : undefined)}
-            >
-              Play en attente
-            </button>
-            <button className="btn" type="button" onClick={stopPlayback}>
-              Stop
-            </button>
-          </div>
+          {treeRoot && (
+            <div className="row folderActions" style={{ marginTop: 16 }}>
+              <input
+                ref={folderInputRef}
+                type="file"
+                // @ts-expect-error: webkitdirectory is supported by Chromium-based browsers
+                webkitdirectory=""
+                directory=""
+                multiple
+                accept=".wav,audio/wav,audio/x-wav"
+                onChange={(e) => {
+                  void onPickFolder(e.target.files)
+                  // Permet de re-sélectionner le même dossier si besoin
+                  e.currentTarget.value = ''
+                }}
+              />
+              <button
+                className="btnOrange"
+                type="button"
+                onClick={() => folderInputRef.current?.click()}
+              >
+                Charger nouveau
+              </button>
+            </div>
+          )}
+          {pending ? (
+            <div className="pendingSample">
+              <div className="pendingSampleTitle">Sample en attente d'assignation</div>
+              <div className="pendingSampleFile">{pending.file.name}</div>
+              <div className="pendingSampleFile" style={{ fontSize: '12px', color: 'var(--color-text-medium)' }}>
+                Durée: {pending.durationSec.toFixed(2)}s
+      </div>
+              <div className="pendingActions">
+                <button
+                  className="btnPrimary"
+                  type="button"
+                  onClick={() => void onPlay(pending.file, pending.file.name)}
+                >
+                  ▶ Play
+                </button>
+                <button className="btn" type="button" onClick={stopPlayback}>
+                  ⏹ Stop
+        </button>
+              </div>
+            </div>
+          ) : (
+            <div className="hint">
+              Clique un WAV pour l'écouter et le mettre en attente, puis clique une note pour l'assigner.
+      </div>
+          )}
         </section>
 
         <section className="panel">
-          <div className="panelTitle">2) Assigner aux notes</div>
+          <div className="panelHeader">
+            <div className="panelTitle">Assigner aux notes</div>
+          </div>
           <div className="notes">
             {ALLOWED_NOTES.map((note) => {
               const slot = assigned[note]
+              const isPending = pending && pending.file
+              const isEmpty = !slot
+              const isHighlighted = isPending && isEmpty
               return (
-                <div key={note} className="noteCard">
+                <div
+                  key={note}
+                  className={`noteCard ${slot ? 'assigned' : ''} ${isHighlighted ? 'highlighted' : ''}`}
+                  onClick={(e) => {
+                    // Si un sample est assigné, jouer au clic sur la carte
+                    if (slot && !(e.target as HTMLElement).closest('.noteCardRemove')) {
+                      void onPlay(slot.file, `${NOTE_LABEL[note]} — ${slot.file.name}`, true)
+                    }
+                    // Si un sample est en attente et le pad est vide, assigner
+                    else if (isPending && isEmpty) {
+                      assignTo(note)
+                    }
+                  }}
+                  title={
+                    slot
+                      ? `Cliquer pour jouer: ${slot.file.name}`
+                      : isPending
+                        ? `Cliquer pour assigner: ${pending.file.name}`
+                        : undefined
+                  }
+                >
+                  {slot && (
+                    <button
+                      className="noteCardRemove"
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        removeFrom(note)
+                      }}
+                      title="Retirer le sample"
+                    >
+                      ×
+                    </button>
+                  )}
                   <div className="noteName">{NOTE_LABEL[note]}</div>
                   <div className="noteFile">
                     {slot ? (
                       <>
-                        {slot.file.name} <span className="muted">({slot.durationSec.toFixed(2)}s)</span>
+                        <div className="noteFileName">{slot.file.name}</div>
+                        <div className="noteFileDuration">{slot.durationSec.toFixed(2)}s</div>
                       </>
                     ) : (
                       <span className="muted">—</span>
                     )}
-                  </div>
-                  <div className="noteActions">
-                    <button className="btnPrimary" type="button" onClick={() => assignTo(note)}>
-                      Assigner
-                    </button>
-                    <button className="btn" type="button" onClick={() => (slot ? void onPlay(slot.file, `${NOTE_LABEL[note]} — ${slot.file.name}`) : undefined)} disabled={!slot}>
-                      Play
-                    </button>
-                    <button className="btn" type="button" onClick={() => removeFrom(note)} disabled={!slot}>
-                      Retirer
-                    </button>
                   </div>
                 </div>
               )
@@ -395,7 +482,9 @@ function App() {
         </section>
 
         <section className="panel">
-          <div className="panelTitle">3) Export (prochain step)</div>
+          <div className="panelHeader">
+            <div className="panelTitle">Export (prochain step)</div>
+          </div>
           <div className="row">
             <label className="field">
               <div className="fieldLabel">Échantillonnage</div>
@@ -419,7 +508,7 @@ function App() {
           <div className="hint">
             Export local uniquement (aucun upload). Format: WAV PCM16. Export bloqué si durée totale &gt; 20s.
           </div>
-          <button className="btnPrimary" type="button" disabled={!canExport} onClick={() => void onExport()}>
+          <button className="btnOrange" type="button" disabled={!canExport} onClick={() => void onExport()}>
             Exporter WAV
           </button>
         </section>
