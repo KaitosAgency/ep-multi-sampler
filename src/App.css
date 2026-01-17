@@ -39,23 +39,35 @@
 }
 
 .title {
-  font-family: 'riddimscript', sans-serif;
-  font-size: 36px;
+  font-family: 'riddim', sans-serif;
+  font-size: 64px;
   font-weight: 400;
   letter-spacing: 0;
   color: var(--color-green-dark);
   margin: 0;
-  text-transform: none;
+  text-transform: uppercase;
+  line-height: 1;
 }
 
 .subtitle {
-  margin-top: 6px;
+  margin-top: 2px;
   color: var(--color-text-light);
-  font-size: 12px;
-  font-weight: 400;
+  font-size: 14px;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  font-family: 'TE20', sans-serif;
+  font-family: 'technotype', sans-serif;
+  line-height: 1;
+}
+
+.subtitleSmall {
+  margin-top: 4px;
+  color: var(--color-text-light);
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-family: 'technotype', sans-serif;
 }
 
 .headerActions {
@@ -78,13 +90,25 @@
   }
 }
 
+.rightCol {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-width: 0;
+}
+
+@media (min-width: 1024px) {
+  .rightCol {
+    grid-column: 2;
+  }
+}
+
 .panel {
   border: var(--border-width) solid var(--color-border);
   border-radius: 0;
   padding: 20px;
   background: transparent;
   position: relative;
-  margin-bottom: 20px;
 }
 
 .panelHeader {
@@ -123,6 +147,7 @@
   margin-top: 12px;
   color: var(--color-text-light);
   font-size: 12px;
+  font-family: 'technotype', sans-serif;
   line-height: 1.5;
 }
 
@@ -130,6 +155,8 @@
   padding: 12px 16px;
   margin-top: 0;
   border-top: var(--border-width) solid var(--color-border);
+  background: var(--color-white);
+  font-family: 'technotype', sans-serif;
 }
 
 .error {
@@ -140,6 +167,7 @@
   padding: 12px 16px;
   border-radius: 0;
   font-size: 12px;
+  font-family: 'technotype', sans-serif;
 }
 
 .info {
@@ -150,6 +178,7 @@
   padding: 12px 16px;
   border-radius: 0;
   font-size: 12px;
+  font-family: 'technotype', sans-serif;
 }
 
 .notes {
@@ -173,6 +202,16 @@
   cursor: pointer;
   min-width: 0;
   overflow: hidden;
+}
+
+.noteSpacer {
+  border: var(--border-width-pad) solid transparent;
+  border-radius: 8px;
+  padding: 12px;
+  background: transparent;
+  position: relative;
+  aspect-ratio: 1;
+  min-width: 0;
 }
 
 .noteCard.assigned {
@@ -220,7 +259,7 @@
   padding: 12px 16px;
   align-items: center;
   border-bottom: var(--border-width) solid var(--color-border);
-  background: transparent;
+  background: var(--color-white);
 }
 
 .browserHeader .browserSearch {
@@ -234,9 +273,10 @@
   flex-wrap: wrap;
   gap: 8px;
   padding: 10px 16px;
-  border-bottom: 1px solid var(--color-border-light);
+  border-bottom: var(--border-width) solid var(--color-border-light);
   background: var(--color-bg-alt);
   font-size: 12px;
+  font-family: 'technotype', sans-serif;
 }
 
 .crumbWrap {
@@ -256,14 +296,17 @@
   color: var(--color-text);
   cursor: pointer;
   padding: 4px 8px;
-  border-radius: 0;
+  border-radius: 4px;
   font-size: 12px;
+  font-family: 'technotype', sans-serif;
+  font-weight: 700;
   transition: all 0.15s ease;
 }
 
 .crumb:hover {
   background: var(--color-accent);
   color: var(--color-white);
+  border-radius: 4px;
 }
 
 .browserTitle {
@@ -280,6 +323,7 @@
   background: var(--color-white);
   color: var(--color-text);
   font-size: 12px;
+  font-family: 'technotype', sans-serif;
   transition: border-color 0.15s ease;
 }
 
@@ -335,7 +379,9 @@
   align-items: center;
   gap: 8px;
   transition: background-color 0.15s ease, color 0.15s ease;
-  font-size: 12px;
+  font-size: 11px;
+  font-family: 'technotype', sans-serif;
+  font-weight: 500;
   min-height: 32px;
 }
 
@@ -384,7 +430,9 @@
 }
 
 .browserItemName {
-  font-size: 13px;
+  font-size: 11px;
+  font-family: 'technotype', sans-serif;
+  font-weight: 500;
   word-break: break-word;
   color: inherit;
   overflow: hidden;
@@ -452,7 +500,9 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 12px;
+  font-size: 11px;
+  font-family: 'technotype', sans-serif;
+  font-weight: 700;
   color: var(--color-text);
   min-width: 0;
   max-width: 100%;
@@ -575,17 +625,32 @@
   gap: 8px;
 }
 
+/* Export row: make selects wide enough so values aren't clipped */
+.row .field {
+  flex: 1 1 180px;
+  min-width: 180px;
+}
+
+.row .field select {
+  width: 100%;
+}
+
 .fieldLabel {
   font-size: 12px;
   color: var(--color-text-light);
-  font-weight: 600;
+  font-weight: 700; /* Bold */
+  font-family: 'technotype', sans-serif;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
 select {
   border-radius: 0;
-  padding: 10px 14px;
+  /* Custom chevron so we can control spacing (native chevron often adds too much right padding) */
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding: 10px 32px 10px 14px; /* right = room for chevron (14px) + spacing (14px) + border */
   border: var(--border-width-button) solid var(--color-border);
   background: var(--color-white);
   color: var(--color-text);
@@ -593,7 +658,15 @@ select {
   font-family: inherit;
   cursor: pointer;
   transition: border-color 0.15s ease;
-  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.1);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24'%3E%3Cpath fill='%231F3D2A' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center; /* space between chevron and right border */
+  background-size: 14px 14px;
+}
+
+/* Hide the legacy arrow in IE/old Edge (harmless elsewhere) */
+select::-ms-expand {
+  display: none;
 }
 
 select:focus {
@@ -608,10 +681,41 @@ select:focus {
   transform: none;
 }
 
-.footerInfo {
+.durationProgress {
   margin-top: 12px;
+}
+
+.durationProgressBar {
+  width: 100%;
+  height: 12px;
+  border: var(--border-width) solid var(--color-border);
+  background: var(--color-bg);
+  border-radius: 0;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.durationProgressFill {
+  height: 100%;
+  background: var(--color-green-dark);
+  transition: width 200ms ease;
+  border-radius: 0;
+}
+
+.footerInfo {
   color: var(--color-text-light);
   font-size: 12px;
+  font-family: 'technotype', sans-serif;
+}
+
+.exportSection {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: var(--border-width) solid var(--color-border);
+}
+
+.exportHint {
+  margin-bottom: 16px;
 }
 
 .budgetRow {

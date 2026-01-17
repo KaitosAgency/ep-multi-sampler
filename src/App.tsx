@@ -7,7 +7,7 @@ import { breadcrumbParts, buildFileTree, getNode, type FileEntry, type TreeNode 
 
 type MidiNote = 60 | 62 | 64 | 65 | 67 | 69 | 71 | 72
 
-const ALLOWED_NOTES: readonly MidiNote[] = [60, 62, 64, 65, 67, 69, 71, 72] as const
+const ALLOWED_NOTES: readonly MidiNote[] = [60, 62, 64, 65, 67, 69, 71, 72] as const // C4, D4, E4, F4, G4, A4, B4, C5
 const NOTE_LABEL: Record<MidiNote, string> = {
   60: 'C4',
   62: 'D4',
@@ -42,7 +42,7 @@ function App() {
   })
   const [error, setError] = useState<string | null>(null)
   const [audioStatus, setAudioStatus] = useState<string | null>(null)
-  const [exportSampleRate, setExportSampleRate] = useState<number>(44100)
+  const [exportSampleRate, setExportSampleRate] = useState<number>(22050)
   const [exportChannels, setExportChannels] = useState<1 | 2>(2)
   const [exportStatus, setExportStatus] = useState<string | null>(null)
   const [treeRoot, setTreeRoot] = useState<TreeNode | null>(null)
@@ -240,8 +240,11 @@ function App() {
     <div className="app">
       <header className="header">
       <div>
-          <div className="title">Ridiwave Web</div>
+          <div className="title">Riddiwave</div>
           <div className="subtitle">
+            EP MULTI-SAMPLER
+          </div>
+          <div className="subtitleSmall">
             Front only • aucun upload • assignation EP-40 (C4→C5) • export limité à 20s
           </div>
         </div>
@@ -359,7 +362,7 @@ function App() {
               </div>
 
               <div className="hint browserHint">
-                Dossiers: {folderItems.dirs.length} • WAV: {folderItems.files.length}
+                Dossiers : {folderItems.dirs.length} • WAV : {folderItems.files.length}
                 {folderItems.files.length > 500 ? <> • affichage limité à 500 (perf)</> : null}
               </div>
             </div>
@@ -389,129 +392,130 @@ function App() {
               </button>
             </div>
           )}
-          {pending ? (
-            <div className="pendingSample">
-              <div className="pendingSampleTitle">Sample en attente d'assignation</div>
-              <div className="pendingSampleFile">{pending.file.name}</div>
-              <div className="pendingSampleFile" style={{ fontSize: '12px', color: 'var(--color-text-medium)' }}>
-                Durée: {pending.durationSec.toFixed(2)}s
-      </div>
-              <div className="pendingActions">
-                <button
-                  className="btnPrimary"
-                  type="button"
-                  onClick={() => void onPlay(pending.file, pending.file.name)}
-                >
-                  ▶ Play
-                </button>
-                <button className="btn" type="button" onClick={stopPlayback}>
-                  ⏹ Stop
-        </button>
-              </div>
-            </div>
-          ) : (
+          {!pending && (
             <div className="hint">
               Clique un WAV pour l'écouter et le mettre en attente, puis clique une note pour l'assigner.
       </div>
           )}
         </section>
 
-        <section className="panel">
-          <div className="panelHeader">
-            <div className="panelTitle">Assigner aux notes</div>
-          </div>
-          <div className="notes">
-            {ALLOWED_NOTES.map((note) => {
-              const slot = assigned[note]
-              const isPending = pending && pending.file
-              const isEmpty = !slot
-              const isHighlighted = isPending && isEmpty
-              return (
-                <div
-                  key={note}
-                  className={`noteCard ${slot ? 'assigned' : ''} ${isHighlighted ? 'highlighted' : ''}`}
-                  onClick={(e) => {
-                    // Si un sample est assigné, jouer au clic sur la carte
-                    if (slot && !(e.target as HTMLElement).closest('.noteCardRemove')) {
-                      void onPlay(slot.file, `${NOTE_LABEL[note]} — ${slot.file.name}`, true)
-                    }
-                    // Si un sample est en attente et le pad est vide, assigner
-                    else if (isPending && isEmpty) {
-                      assignTo(note)
-                    }
-                  }}
-                  title={
-                    slot
-                      ? `Cliquer pour jouer: ${slot.file.name}`
-                      : isPending
-                        ? `Cliquer pour assigner: ${pending.file.name}`
-                        : undefined
-                  }
-                >
-                  {slot && (
-                    <button
-                      className="noteCardRemove"
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        removeFrom(note)
-                      }}
-                      title="Retirer le sample"
-                    >
-                      ×
-                    </button>
-                  )}
-                  <div className="noteName">{NOTE_LABEL[note]}</div>
-                  <div className="noteFile">
-                    {slot ? (
-                      <>
-                        <div className="noteFileName">{slot.file.name}</div>
-                        <div className="noteFileDuration">{slot.durationSec.toFixed(2)}s</div>
-                      </>
-                    ) : (
-                      <span className="muted">—</span>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-          <div className="footerInfo">
-            Samples assignés: <b>{assignedCount}</b> / {ALLOWED_NOTES.length}
-          </div>
-        </section>
+        <div className="rightCol">
+          <section className="panel">
+            <div className="panelHeader">
+              <div className="panelTitle">Assigner aux notes</div>
+            </div>
+            <div className="notes">
+              {(
+                [
+                  71,
+                  72,
+                  null, // 3e case vide: B4 | C5 | (vide)
+                  65,
+                  67,
+                  69, // F4 | G4 | A4
+                  60,
+                  62,
+                  64, // C4 | D4 | E4
+                ] as Array<MidiNote | null>
+              ).map((note, idx) => {
+                if (note === null) return <div key={`pad-spacer-${idx}`} className="noteSpacer" aria-hidden="true" />
 
-        <section className="panel">
-          <div className="panelHeader">
-            <div className="panelTitle">Export (prochain step)</div>
-          </div>
-          <div className="row">
-            <label className="field">
-              <div className="fieldLabel">Échantillonnage</div>
-              <select
-                value={exportSampleRate}
-                onChange={(e) => setExportSampleRate(Number(e.target.value))}
-              >
-                <option value={22050}>22050 Hz</option>
-                <option value={44100}>44100 Hz</option>
-                <option value={48000}>48000 Hz</option>
-              </select>
-            </label>
-            <label className="field">
-              <div className="fieldLabel">Canaux</div>
-              <select value={exportChannels} onChange={(e) => setExportChannels(Number(e.target.value) as 1 | 2)}>
-                <option value={1}>Mono</option>
-                <option value={2}>Stéréo</option>
-              </select>
-            </label>
-          </div>
-          <div className="hint">
-            Export local uniquement (aucun upload). Format: WAV PCM16. Export bloqué si durée totale &gt; 20s.
-          </div>
-          <button className="btnOrange" type="button" disabled={!canExport} onClick={() => void onExport()}>
-            Exporter WAV
-          </button>
-        </section>
+                const slot = assigned[note]
+                const isPending = pending && pending.file
+                const isEmpty = !slot
+                const isHighlighted = isPending && isEmpty
+                return (
+                  <div
+                    key={note}
+                    className={`noteCard ${slot ? 'assigned' : ''} ${isHighlighted ? 'highlighted' : ''}`}
+                    onClick={(e) => {
+                      // Si un sample est assigné, jouer au clic sur la carte
+                      if (slot && !(e.target as HTMLElement).closest('.noteCardRemove')) {
+                        void onPlay(slot.file, `${NOTE_LABEL[note]} — ${slot.file.name}`, true)
+                      }
+                      // Si un sample est en attente et le pad est vide, assigner
+                      else if (isPending && isEmpty) {
+                        assignTo(note)
+                      }
+                    }}
+                    title={
+                      slot
+                        ? `Cliquer pour jouer: ${slot.file.name}`
+                        : isPending
+                          ? `Cliquer pour assigner: ${pending.file.name}`
+                          : undefined
+                    }
+                  >
+                    {slot && (
+                      <button
+                        className="noteCardRemove"
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          removeFrom(note)
+                        }}
+                        title="Retirer le sample"
+                      >
+                        ×
+                      </button>
+                    )}
+                    <div className="noteName">{NOTE_LABEL[note]}</div>
+                    <div className="noteFile">
+                      {slot ? (
+                        <>
+                          <div className="noteFileName">{slot.file.name}</div>
+                          <div className="noteFileDuration">{slot.durationSec.toFixed(2)}s</div>
+                        </>
+                      ) : (
+                        <span className="muted">—</span>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+            <div className="durationProgress">
+              <div className="durationProgressBar">
+                <div
+                  className="durationProgressFill"
+                  style={{ width: `${Math.min(100, (totalDurationSec / MAX_TOTAL_SECONDS) * 100)}%` }}
+                />
+              </div>
+              <div className="footerInfo">
+                {totalDurationSec.toFixed(2)}s / {MAX_TOTAL_SECONDS}s • Samples assignés: <b>{assignedCount}</b> /{' '}
+                {ALLOWED_NOTES.length}
+              </div>
+            </div>
+          </section>
+
+          <section className="panel">
+            <div className="panelHeader">
+              <div className="panelTitle">Export</div>
+            </div>
+            <div className="row">
+              <label className="field">
+                <div className="fieldLabel">Échantillonnage</div>
+                <select value={exportSampleRate} onChange={(e) => setExportSampleRate(Number(e.target.value))}>
+                  <option value={22050}>22050 Hz</option>
+                  <option value={46875}>46875 Hz</option>
+                </select>
+              </label>
+              <label className="field">
+                <div className="fieldLabel">Canaux</div>
+                <select value={exportChannels} onChange={(e) => setExportChannels(Number(e.target.value) as 1 | 2)}>
+                  <option value={1}>Mono</option>
+                  <option value={2}>Stéréo</option>
+                </select>
+              </label>
+            </div>
+            <div className="hint exportHint">
+              Export local uniquement (aucun upload). Format: WAV PCM16. Export bloqué si durée totale &gt; 20s.
+            </div>
+            <button className="btnOrange" type="button" disabled={!canExport} onClick={() => void onExport()}>
+              Exporter WAV
+            </button>
+          </section>
+        </div>
       </main>
     </div>
   )
