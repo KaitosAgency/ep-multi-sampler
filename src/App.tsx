@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react'
 import './App.css'
 import { readWavInfo } from './audio/wavInfo'
 import { playWavBlob, stopPlayback } from './audio/player'
-import { exportConcatenatedWavPcm16 } from './audio/exportWav'
+import { exportAcDryKitWavPcm16 } from './audio/exportWav'
 import { breadcrumbParts, buildFileTree, getNode, type FileEntry, type TreeNode } from './utils/fileTree'
 
 type MidiNote = 60 | 62 | 64 | 65 | 67 | 69 | 71 | 72
@@ -169,16 +169,16 @@ function App() {
       return
     }
 
-    // Keep the note order stable (C4..C5). Export only assigned slots.
-    const files: Blob[] = []
+    // Export as a "kit" WAV (AcDry-like): needs note mapping for TNGE regions.
+    const items: { note: number; file: Blob }[] = []
     for (const n of ALLOWED_NOTES) {
       const slot = assigned[n]
-      if (slot) files.push(slot.file)
+      if (slot) items.push({ note: n, file: slot.file })
     }
 
     try {
       setExportStatus('Export en cours (décodage + resampling)…')
-      const { wavBytes, durationSec } = await exportConcatenatedWavPcm16(files, {
+      const { wavBytes, durationSec } = await exportAcDryKitWavPcm16(items, {
         sampleRate: exportSampleRate,
         channels: exportChannels,
       })
@@ -214,7 +214,7 @@ function App() {
     try {
       const info = await readWavInfo(entry.file)
       setPending({ file: entry.file, durationSec: info.durationSec })
-      await onPlay(entry.file, entry.path)
+      await onPlay(entry.file, entry.path, true) // Lecture silencieuse
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Impossible de lire le WAV')
     }
