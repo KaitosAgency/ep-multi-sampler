@@ -4,6 +4,8 @@ import { readWavInfo } from './audio/wavInfo'
 import { playWavBlob, stopPlayback } from './audio/player'
 import { exportAcDryKitWavPcm16 } from './audio/exportWav'
 import { breadcrumbParts, buildFileTree, getNode, type FileEntry, type TreeNode } from './utils/fileTree'
+import { useI18n } from './i18n/context'
+import { languageNames, type Language } from './i18n/translations'
 
 type MidiNote = 60 | 62 | 64 | 65 | 67 | 69 | 71 | 72
 
@@ -26,6 +28,7 @@ type AssignedSample = {
 
 function App() {
   const MAX_TOTAL_SECONDS = 20
+  const { t, language, setLanguage, availableLanguages } = useI18n()
 
   const folderInputRef = useRef<HTMLInputElement>(null)
 
@@ -80,7 +83,7 @@ function App() {
       }))
 
     if (all.length === 0) {
-      setError('Aucun fichier .wav trouvé dans ce dossier.')
+      setError(t('noWavFound'))
       setTreeRoot(null)
       setCurrentPath('')
       return
@@ -94,7 +97,7 @@ function App() {
     setError(null)
     setAudioStatus(null)
     if (!pending) {
-      setError('Choisis d’abord un fichier WAV à assigner.')
+      setError(t('chooseWavFirst'))
       return
     }
 
@@ -103,9 +106,7 @@ function App() {
     const nextTotal = baseTotal + pending.durationSec
     if (nextTotal > MAX_TOTAL_SECONDS + 1e-6) {
       const remainingIfReplace = Math.max(0, MAX_TOTAL_SECONDS - baseTotal)
-      setError(
-        `Limite 20s dépassée. Il te reste ${remainingIfReplace.toFixed(2)}s (en comptant le remplacement sur cette note).`,
-      )
+      setError(t('limitExceeded', { remaining: remainingIfReplace.toFixed(2) }))
       return
     }
 
@@ -141,7 +142,7 @@ function App() {
     setError(null)
     try {
       if (!silent) {
-        setAudioStatus(`Lecture: ${label}`)
+        setAudioStatus(`${t('reading')}: ${label}`)
       }
       await playWavBlob(blob)
       if (!silent) {
@@ -151,7 +152,7 @@ function App() {
       if (!silent) {
         setAudioStatus(null)
       }
-      setError(e instanceof Error ? `Impossible de lire le WAV: ${e.message}` : 'Impossible de lire le WAV')
+      setError(e instanceof Error ? `${t('cannotReadWav')}: ${e.message}` : t('cannotReadWav'))
     }
   }
 
@@ -161,11 +162,11 @@ function App() {
     setExportStatus(null)
 
     if (isOverLimit) {
-      setError('Export impossible: la durée totale dépasse 20 secondes.')
+      setError(t('exportImpossibleDuration'))
       return
     }
     if (assignedCount === 0) {
-      setError('Export impossible: aucun sample assigné.')
+      setError(t('exportImpossibleNoSamples'))
       return
     }
 
@@ -177,14 +178,14 @@ function App() {
     }
 
     try {
-      setExportStatus('Export en cours (décodage + resampling)…')
+      setExportStatus(t('exportInProgress'))
       const { wavBytes, durationSec } = await exportAcDryKitWavPcm16(items, {
         sampleRate: exportSampleRate,
         channels: exportChannels,
       })
       if (durationSec > MAX_TOTAL_SECONDS + 1e-6) {
         setExportStatus(null)
-        setError('Export impossible: le WAV final dépasse 20 secondes.')
+        setError(t('exportImpossibleFinalDuration'))
         return
       }
 
@@ -203,7 +204,7 @@ function App() {
       setExportStatus(null)
     } catch (e) {
       setExportStatus(null)
-      setError(e instanceof Error ? `Export échoué: ${e.message}` : "Export échoué")
+      setError(e instanceof Error ? `${t('exportFailed')}: ${e.message}` : t('exportFailed'))
     }
   }
 
@@ -216,7 +217,7 @@ function App() {
       setPending({ file: entry.file, durationSec: info.durationSec })
       await onPlay(entry.file, entry.path, true) // Lecture silencieuse
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Impossible de lire le WAV')
+      setError(e instanceof Error ? e.message : t('cannotReadWav'))
     }
   }
 
@@ -239,18 +240,31 @@ function App() {
   return (
     <div className="app">
       <header className="header">
-      <div>
-          <div className="title">Riddiwave</div>
+      <div className="headerTitle">
+          <div className="title">
+            {t('title')}
+            <select
+              className="languageSelect"
+              value={language}
+              onChange={(e) => setLanguage(e.target.value as Language)}
+            >
+              {availableLanguages.map((lang) => (
+                <option key={lang} value={lang}>
+                  {languageNames[lang]}
+                </option>
+              ))}
+            </select>
+          </div>
           <div className="subtitle">
-            EP MULTI-SAMPLER
+            {t('subtitle')}
           </div>
           <div className="subtitleSmall">
-            Front only • aucun upload • assignation EP-40 (C4→C5) • export limité à 20s
+            {t('subtitleSmall')}
           </div>
         </div>
         <div className="headerActions">
           <button className="btnNew" onClick={resetProject} type="button">
-            Nouveau
+            {t('nouveau')}
           </button>
         </div>
       </header>
@@ -262,7 +276,7 @@ function App() {
       <main className="grid">
         <section className="panel">
           <div className="panelHeader">
-            <div className="panelTitle">Dossier de samples & navigation</div>
+            <div className="panelTitle">{t('folderTitle')}</div>
           </div>
           {!treeRoot && (
             <div className="row folderActions">
@@ -285,7 +299,7 @@ function App() {
                 type="button"
                 onClick={() => folderInputRef.current?.click()}
               >
-                Charger un dossier
+                {t('loadFolder')}
               </button>
             </div>
           )}
@@ -294,7 +308,7 @@ function App() {
               <div className="browserHeader">
                 <input
                   className="browserSearch"
-                  placeholder="Rechercher"
+                  placeholder={t('search')}
                   value={browserQuery}
                   onChange={(e) => setBrowserQuery(e.target.value)}
                 />
@@ -302,7 +316,7 @@ function App() {
 
               <div className="browserBreadcrumb">
                 <button className="crumb" type="button" onClick={() => setCurrentPath('')}>
-                  Dossier
+                  {t('folder')}
                 </button>
                 {breadcrumbParts(currentPath).map((c) => (
                   <div key={c.path} className="crumbWrap">
@@ -332,7 +346,7 @@ function App() {
                     className="browserItem browserDir"
                     type="button"
                     onClick={() => setCurrentPath(d.path)}
-                    title="Ouvrir le dossier"
+                    title={t('openFolder')}
                   >
                     <span className="browserIcon">📁</span>
                     <span className="browserItemName">{d.name}</span>
@@ -349,8 +363,8 @@ function App() {
                       onClick={() => void onClickBrowserFile(f)}
                       title={
                         isAssigned
-                          ? `Déjà assigné - Cliquer pour écouter + mettre en attente d'assignation`
-                          : 'Cliquer pour écouter + mettre en attente d\'assignation'
+                          ? t('alreadyAssigned')
+                          : t('clickToListen')
                       }
                     >
                       <span className="browserIcon">🎵</span>
@@ -362,8 +376,8 @@ function App() {
               </div>
 
               <div className="hint browserHint">
-                Dossiers : {folderItems.dirs.length} • WAV : {folderItems.files.length}
-                {folderItems.files.length > 500 ? <> • affichage limité à 500 (perf)</> : null}
+                {t('folders')} : {folderItems.dirs.length} • {t('wav')} : {folderItems.files.length}
+                {folderItems.files.length > 500 ? <> • {t('displayLimited')}</> : null}
               </div>
             </div>
           ) : null}
@@ -388,13 +402,13 @@ function App() {
                 type="button"
                 onClick={() => folderInputRef.current?.click()}
               >
-                Charger nouveau
+                {t('loadNew')}
               </button>
             </div>
           )}
           {!pending && (
             <div className="hint">
-              Clique un WAV pour l'écouter et le mettre en attente, puis clique une note pour l'assigner.
+              {t('hintClickWav')}
       </div>
           )}
         </section>
@@ -402,7 +416,7 @@ function App() {
         <div className="rightCol">
           <section className="panel">
             <div className="panelHeader">
-              <div className="panelTitle">Assigner aux notes</div>
+              <div className="panelTitle">{t('assignTitle')}</div>
             </div>
             <div className="notes">
               {(
@@ -440,9 +454,9 @@ function App() {
                     }}
                     title={
                       slot
-                        ? `Cliquer pour jouer: ${slot.file.name}`
+                        ? `${t('clickToPlay')}: ${slot.file.name}`
                         : isPending
-                          ? `Cliquer pour assigner: ${pending.file.name}`
+                          ? `${t('clickToAssign')}: ${pending.file.name}`
                           : undefined
                     }
                   >
@@ -454,7 +468,7 @@ function App() {
                           e.stopPropagation()
                           removeFrom(note)
                         }}
-                        title="Retirer le sample"
+                        title={t('removeSample')}
                       >
                         ×
                       </button>
@@ -482,7 +496,7 @@ function App() {
                 />
               </div>
               <div className="footerInfo">
-                {totalDurationSec.toFixed(2)}s / {MAX_TOTAL_SECONDS}s • Samples assignés: <b>{assignedCount}</b> /{' '}
+                {totalDurationSec.toFixed(2)}s / {MAX_TOTAL_SECONDS}s • {t('samplesAssigned')}: <b>{assignedCount}</b> /{' '}
                 {ALLOWED_NOTES.length}
               </div>
             </div>
@@ -490,29 +504,29 @@ function App() {
 
           <section className="panel">
             <div className="panelHeader">
-              <div className="panelTitle">Export</div>
+              <div className="panelTitle">{t('exportTitle')}</div>
             </div>
             <div className="row">
               <label className="field">
-                <div className="fieldLabel">Échantillonnage</div>
+                <div className="fieldLabel">{t('sampling')}</div>
                 <select value={exportSampleRate} onChange={(e) => setExportSampleRate(Number(e.target.value))}>
                   <option value={22050}>22050 Hz</option>
                   <option value={46875}>46875 Hz</option>
                 </select>
               </label>
               <label className="field">
-                <div className="fieldLabel">Canaux</div>
+                <div className="fieldLabel">{t('channels')}</div>
                 <select value={exportChannels} onChange={(e) => setExportChannels(Number(e.target.value) as 1 | 2)}>
-                  <option value={1}>Mono</option>
-                  <option value={2}>Stéréo</option>
+                  <option value={1}>{t('mono')}</option>
+                  <option value={2}>{t('stereo')}</option>
                 </select>
               </label>
             </div>
             <div className="hint exportHint">
-              Export local uniquement (aucun upload). Format: WAV PCM16. Export bloqué si durée totale &gt; 20s.
+              {t('exportHint')}
             </div>
             <button className="btnOrange" type="button" disabled={!canExport} onClick={() => void onExport()}>
-              Exporter WAV
+              {t('exportWav')}
             </button>
           </section>
         </div>
